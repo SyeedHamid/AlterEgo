@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const { solveCaptcha } = require('../utils/captcha');
+const { solveCaptcha } = require('../../utils/captcha');
 
 /**
  * Scrapes job listings from Indeed.
