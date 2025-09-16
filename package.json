@@ -16,4 +16,9 @@
     "pdfkit": "^0.13.0",
     "playwright": "^1.42.0"
   }
+  "main": "main.js",
+"scripts": {
+  "start": "electron ."
+}
+
 }
