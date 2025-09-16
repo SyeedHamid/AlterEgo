@@ -24,15 +24,20 @@ const resumeDir = path.join(__dirname, '../data/resumes');
 const outputDir = path.join(__dirname, '../data/output');
 const logDir = path.join(__dirname, '../data/logs');
 const resumeFile = path.join(resumeDir, 'base_resume.txt');
-const LOG_PATH = path.join(logDir, 'applications.json');
 
-// Ensure required folders and files exist
 [resumeDir, outputDir, logDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
     console.log(`📁 Created folder: ${dir}`);
   }
 });
+
+if (!fs.existsSync(resumeFile)) {
+  fs.writeFileSync(resumeFile, 'Experienced automation developer skilled in Node.js, Playwright, and GitHub Actions.');
+  console.log('📄 Created sample resume: base_resume.txt');
+}
+
+
 
 if (!fs.existsSync(resumeFile)) {
   const sampleResume = `Experienced automation developer with expertise in Node.js, Playwright, and GitHub Actions. Built scalable systems for job application workflows. Skilled in cloud-native deployment and CI/CD pipelines.`;
