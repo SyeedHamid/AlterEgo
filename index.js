@@ -2,6 +2,31 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
+const fs = require('fs');
+const path = require('path');
+
+// Define required paths
+const resumeDir = path.join(__dirname, '../data/resumes');
+const outputDir = path.join(__dirname, '../data/output');
+const resumeFile = path.join(resumeDir, 'base_resume.txt');
+
+// Create folders if they don't exist
+if (!fs.existsSync(resumeDir)) {
+  fs.mkdirSync(resumeDir, { recursive: true });
+  console.log('📁 Created folder: data/resumes');
+}
+
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
+  console.log('📁 Created folder: data/output');
+}
+
+// Create sample resume if missing
+if (!fs.existsSync(resumeFile)) {
+  const sampleResume = `Experienced automation developer with expertise in Node.js, Playwright, and GitHub Actions. Built scalable systems for job application workflows. Skilled in cloud-native deployment and CI/CD pipelines.`;
+  fs.writeFileSync(resumeFile, sampleResume);
+  console.log('📄 Created sample resume: base_resume.txt');
+}
 
 // Scrapers
 const scrapeIndeed = require('./scraper/indeed');
