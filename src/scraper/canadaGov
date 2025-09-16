@@ -1,0 +1,53 @@
+const { chromium } = require('playwright');
+const { solveCaptcha } = require('../utils/captcha');
+
+/**
+ * Scrapes job listings from Canada.ca (Government of Canada jobs).
+ */
+async function scrapeCanadaGov() {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  try {
+    const keywords = process.env.JOB_KEYWORDS?.join('+') || 'developer';
+    const url = `https://www.canada.ca/en/services/jobs/opportunities/government.html`;
+
+    console.log(`[INFO] Navigating to: ${url}`);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    const captchaFrame = await page.$('iframe[src*="captcha"]');
+    const recaptchaDiv = await page.$('div#g-recaptcha');
+    if (captchaFrame || recaptchaDiv) {
+      await solveCaptcha(page);
+    }
+
+    const jobCards = await page.$$('.job-listing');
+    if (!jobCards.length) throw new Error('No job listings found on Canada.ca.');
+
+    const jobs = [];
+
+    for (const card of jobCards) {
+      try {
+        const title = await card.$eval('h3', el => el.innerText.trim());
+        const company = 'Government of Canada';
+        const location = await card.$eval('.location', el => el.innerText.trim());
+        const description = await card.$eval('p', el => el.innerText.trim());
+        const applyLink = await card.$eval('a', el => el.href);
+
+        jobs.push({ title, company, location, description, applyLink });
+      } catch (err) {
+        console.warn(`[WARNING] Skipped a Canada.ca job card: ${err.message}`);
+      }
+    }
+
+    console.log(`[INFO] Scraped ${jobs.length} job(s) from Canada.ca.`);
+    return jobs;
+  } catch (err) {
+    console.error(`[ERROR] Canada.ca scraper failed: ${err.message}`);
+    return [];
+  } finally {
+    await browser.close();
+  }
+}
+
+module.exports = scrapeCanadaGov;
