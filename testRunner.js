@@ -15,11 +15,29 @@ const { filterJobs } = require('./src/utils/filterJobs');
 const { solveCaptcha } = require('./src/utils/captcha');
 const { loginToSite } = require('./src/utils/login');
 
-const tailorResume = require('./src/resume_engine/tailor');
-const generateCoverLetter = require('./src/cover_letter/generate');
+const { tailorResume, generateCoverLetter } = require('./src/utils/aiEngine');
+const { writePDF } = require('./src/utils/pdfWriter');
 const submitApplication = require('./src/form_submitter/submit');
 
-// Mock job object for testing downstream modules
+// Setup paths
+const resumeDir = path.join(__dirname, 'data/resumes');
+const outputDir = path.join(__dirname, 'data/output');
+const resumeFile = path.join(resumeDir, 'base_resume.txt');
+
+// Ensure folders and sample resume exist
+[resumeDir, outputDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`📁 Created folder: ${dir}`);
+  }
+});
+
+if (!fs.existsSync(resumeFile)) {
+  fs.writeFileSync(resumeFile, 'Experienced automation developer skilled in Node.js, Playwright, and GitHub Actions.');
+  console.log('📄 Created sample resume: base_resume.txt');
+}
+
+// Mock job object for testing
 const mockJob = {
   title: 'Automation Developer',
   company: 'TestCorp',
@@ -32,46 +50,22 @@ async function runTests() {
   console.log('=== JobPilot Test Harness ===');
 
   // Scraper Tests
-  try {
-    const indeedJobs = await scrapeIndeed();
-    console.log(`[PASS] Indeed scraper returned ${indeedJobs.length} jobs`);
-  } catch (err) {
-    console.error(`[FAIL] Indeed scraper: ${err.message}`);
-  }
+  const scrapers = [
+    { name: 'Indeed', fn: scrapeIndeed },
+    { name: 'LinkedIn', fn: scrapeLinkedIn },
+    { name: 'Glassdoor', fn: scrapeGlassdoor },
+    { name: 'Monster', fn: scrapeMonster },
+    { name: 'ZipRecruiter', fn: scrapeZipRecruiter },
+    { name: 'Canada.ca', fn: scrapeCanadaGov }
+  ];
 
-  try {
-    const linkedinJobs = await scrapeLinkedIn();
-    console.log(`[PASS] LinkedIn scraper returned ${linkedinJobs.length} jobs`);
-  } catch (err) {
-    console.error(`[FAIL] LinkedIn scraper: ${err.message}`);
-  }
-
-  try {
-    const glassdoorJobs = await scrapeGlassdoor();
-    console.log(`[PASS] Glassdoor scraper returned ${glassdoorJobs.length} jobs`);
-  } catch (err) {
-    console.error(`[FAIL] Glassdoor scraper: ${err.message}`);
-  }
-
-  try {
-    const monsterJobs = await scrapeMonster();
-    console.log(`[PASS] Monster scraper returned ${monsterJobs.length} jobs`);
-  } catch (err) {
-    console.error(`[FAIL] Monster scraper: ${err.message}`);
-  }
-
-  try {
-    const zipJobs = await scrapeZipRecruiter();
-    console.log(`[PASS] ZipRecruiter scraper returned ${zipJobs.length} jobs`);
-  } catch (err) {
-    console.error(`[FAIL] ZipRecruiter scraper: ${err.message}`);
-  }
-
-  try {
-    const govJobs = await scrapeCanadaGov();
-    console.log(`[PASS] Canada.ca scraper returned ${govJobs.length} jobs`);
-  } catch (err) {
-    console.error(`[FAIL] Canada.ca scraper: ${err.message}`);
+  for (const { name, fn } of scrapers) {
+    try {
+      const jobs = await fn();
+      console.log(`[PASS] ${name} scraper returned ${jobs.length} job(s)`);
+    } catch (err) {
+      console.error(`[FAIL] ${name} scraper: ${err.message}`);
+    }
   }
 
   // Utility Tests
@@ -105,21 +99,27 @@ async function runTests() {
 
   // Resume & Application Tests
   try {
-    const resumePath = await tailorResume(mockJob);
-    console.log(`[PASS] Resume tailored: ${resumePath}`);
+    const resumeText = fs.readFileSync(resumeFile, 'utf-8');
+    const tailoredResume = await tailorResume(mockJob, resumeText);
+    const resumePath = path.join(outputDir, 'test_resume.pdf');
+    writePDF(tailoredResume, 'test_resume.pdf');
+    console.log(`[PASS] Resume tailored and saved to ${resumePath}`);
   } catch (err) {
     console.error(`[FAIL] Resume tailoring: ${err.message}`);
   }
 
   try {
-    const coverPath = await generateCoverLetter(mockJob, './data/resumes/base_resume.txt');
-    console.log(`[PASS] Cover letter generated: ${coverPath}`);
+    const resumeText = fs.readFileSync(resumeFile, 'utf-8');
+    const coverLetter = await generateCoverLetter(mockJob, resumeText);
+    const coverPath = path.join(outputDir, 'test_cover_letter.pdf');
+    writePDF(coverLetter, 'test_cover_letter.pdf');
+    console.log(`[PASS] Cover letter generated and saved to ${coverPath}`);
   } catch (err) {
     console.error(`[FAIL] Cover letter generation: ${err.message}`);
   }
 
   try {
-    await submitApplication(mockJob, './data/resumes/base_resume.txt', './data/resumes/base_resume.txt');
+    await submitApplication(mockJob, resumeFile, resumeFile); // Simulated
     console.log(`[PASS] Form submission simulated`);
   } catch (err) {
     console.error(`[FAIL] Form submission: ${err.message}`);
