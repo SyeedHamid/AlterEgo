@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>JobPilot</title>
+</head>
+<body>
+  <h1>JobPilot Launcher</h1>
+  <button onclick="runJobPilot()">Run JobPilot</button>
+  <pre id="output"></pre>
+
+  <script>
+    async function runJobPilot() {
+      const { runJobPilot } = require('../src/index');
+      const output = await runJobPilot();
+      document.getElementById('output').textContent = output;
+    }
+  </script>
+</body>
+</html>
