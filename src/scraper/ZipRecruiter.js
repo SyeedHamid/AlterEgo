@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const { solveCaptcha } = require('../utils/captcha');
 
 /**
- * Scrapes job listings from ZipRecruiter.
+ * Scrapes job listings from ZipRecruiter
  */
 async function scrapeZipRecruiter() {
   const browser = await chromium.launch({ headless: true });
