@@ -15,6 +15,20 @@ const scrapeCanadaGov = require('./scraper/canadaGov');
 const { deduplicateJobs } = require('./utils/deduplicate');
 const { filterJobs } = require('./utils/filterJobs');
 const { loginToSite } = require('./utils/login');
+const { generateCoverLetter, tailorResume } = require('./utils/aiEngine');
+const { writePDF } = require('./utils/pdfWriter');
+
+const job = { title: 'Automation Developer', company: 'TechNova' };
+const resumeText = fs.readFileSync('./data/resumes/base_resume.txt', 'utf-8');
+
+(async () => {
+  const tailoredResume = await tailorResume(job, resumeText);
+  const coverLetter = await generateCoverLetter(job, tailoredResume);
+
+  writePDF(tailoredResume, 'resume.pdf');
+  writePDF(coverLetter, 'cover_letter.pdf');
+})();
+
 
 // Resume & Application
 const tailorResume = require('./resume_engine/tailor');
