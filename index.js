@@ -2,31 +2,6 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
-const fs = require('fs');
-const path = require('path');
-
-// Define required paths
-const resumeDir = path.join(__dirname, '../data/resumes');
-const outputDir = path.join(__dirname, '../data/output');
-const resumeFile = path.join(resumeDir, 'base_resume.txt');
-
-// Create folders if they don't exist
-if (!fs.existsSync(resumeDir)) {
-  fs.mkdirSync(resumeDir, { recursive: true });
-  console.log('📁 Created folder: data/resumes');
-}
-
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
-  console.log('📁 Created folder: data/output');
-}
-
-// Create sample resume if missing
-if (!fs.existsSync(resumeFile)) {
-  const sampleResume = `Experienced automation developer with expertise in Node.js, Playwright, and GitHub Actions. Built scalable systems for job application workflows. Skilled in cloud-native deployment and CI/CD pipelines.`;
-  fs.writeFileSync(resumeFile, sampleResume);
-  console.log('📄 Created sample resume: base_resume.txt');
-}
 
 // Scrapers
 const scrapeIndeed = require('./scraper/indeed');
@@ -43,26 +18,49 @@ const { loginToSite } = require('./utils/login');
 const { generateCoverLetter, tailorResume } = require('./utils/aiEngine');
 const { writePDF } = require('./utils/pdfWriter');
 
-const job = { title: 'Automation Developer', company: 'TechNova' };
-const resumeText = fs.readFileSync('./data/resumes/base_resume.txt', 'utf-8');
-
-(async () => {
-  const tailoredResume = await tailorResume(job, resumeText);
-  const coverLetter = await generateCoverLetter(job, tailoredResume);
-
-  writePDF(tailoredResume, 'resume.pdf');
-  writePDF(coverLetter, 'cover_letter.pdf');
-})();
-
-
-// Resume & Application
-const tailorResume = require('./resume_engine/tailor');
-const generateCoverLetter = require('./cover_letter/generate');
-const submitApplication = require('./form_submitter/submit');
-
 // Config
 const MAX_APPS = parseInt(process.env.MAX_APPLICATIONS_PER_DAY || '10');
-const LOG_PATH = path.join(__dirname, '../data/logs/applications.json');
+const resumeDir = path.join(__dirname, '../data/resumes');
+const outputDir = path.join(__dirname, '../data/output');
+const logDir = path.join(__dirname, '../data/logs');
+const resumeFile = path.join(resumeDir, 'base_resume.txt');
+const LOG_PATH = path.join(logDir, 'applications.json');
+
+// Ensure required folders and files exist
+[resumeDir, outputDir, logDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`📁 Created folder: ${dir}`);
+  }
+});
+
+if (!fs.existsSync(resumeFile)) {
+  const sampleResume = `Experienced automation developer with expertise in Node.js, Playwright, and GitHub Actions. Built scalable systems for job application workflows. Skilled in cloud-native deployment and CI/CD pipelines.`;
+  fs.writeFileSync(resumeFile, sampleResume);
+  console.log('📄 Created sample resume: base_resume.txt');
+}
+
+/**
+ * Logs application details to JSON file.
+ */
+function logApplication(job, resumePath, coverLetterPath) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    jobTitle: job.title,
+    company: job.company,
+    location: job.location,
+    applyLink: job.applyLink,
+    resume: path.basename(resumePath),
+    coverLetter: path.basename(coverLetterPath)
+  };
+
+  const existing = fs.existsSync(LOG_PATH)
+    ? JSON.parse(fs.readFileSync(LOG_PATH, 'utf-8'))
+    : [];
+
+  existing.push(logEntry);
+  fs.writeFileSync(LOG_PATH, JSON.stringify(existing, null, 2));
+}
 
 /**
  * Main orchestrator: runs daily job search and application flow.
@@ -88,9 +86,11 @@ async function runJobPilot() {
   console.log(`[INFO] ${selectedJobs.length} job(s) selected for application.`);
 
   // Step 3: Process each job
+  const resumeText = fs.readFileSync(resumeFile, 'utf-8');
+
   for (const job of selectedJobs) {
     try {
-      // Step 3a: Login if required (based on domain)
+      // Step 3a: Login if required
       const domain = new URL(job.applyLink).hostname;
       if (domain.includes('linkedin')) await loginToSite(job.page, 'linkedin');
       if (domain.includes('glassdoor')) await loginToSite(job.page, 'glassdoor');
@@ -99,11 +99,18 @@ async function runJobPilot() {
       if (domain.includes('canada.ca')) await loginToSite(job.page, 'canadagov');
 
       // Step 3b: Tailor resume and generate cover letter
-      const tailoredResumePath = await tailorResume(job);
-      const coverLetterPath = await generateCoverLetter(job, tailoredResumePath);
+      const tailoredResume = await tailorResume(job, resumeText);
+      const coverLetter = await generateCoverLetter(job, tailoredResume);
+
+      const safeName = job.title.replace(/\s+/g, '_').toLowerCase();
+      const tailoredResumePath = path.join(outputDir, `${safeName}_resume.pdf`);
+      const coverLetterPath = path.join(outputDir, `${safeName}_cover_letter.pdf`);
+
+      writePDF(tailoredResume, path.basename(tailoredResumePath));
+      writePDF(coverLetter, path.basename(coverLetterPath));
 
       // Step 3c: Submit application
-      await submitApplication(job, tailoredResumePath, coverLetterPath);
+      // await submitApplication(job, tailoredResumePath, coverLetterPath); // Uncomment when ready
 
       // Step 3d: Log application
       logApplication(job, tailoredResumePath, coverLetterPath);
@@ -113,28 +120,6 @@ async function runJobPilot() {
   }
 
   console.log(`[INFO] JobPilot completed ${selectedJobs.length} application(s).`);
-}
-
-/**
- * Logs application details to JSON file.
- */
-function logApplication(job, resumePath, coverLetterPath) {
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    jobTitle: job.title,
-    company: job.company,
-    location: job.location,
-    applyLink: job.applyLink,
-    resume: path.basename(resumePath),
-    coverLetter: path.basename(coverLetterPath)
-  };
-
-  const existing = fs.existsSync(LOG_PATH)
-    ? JSON.parse(fs.readFileSync(LOG_PATH, 'utf-8'))
-    : [];
-
-  existing.push(logEntry);
-  fs.writeFileSync(LOG_PATH, JSON.stringify(existing, null, 2));
 }
 
 // Schedule daily run at 8:00 AM
