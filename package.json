@@ -1,11 +1,15 @@
 {
   "name": "jobpilot",
   "version": "1.0.0",
-  "description": "Autonomous job application agent",
-  "main": "src/index.js",
+  "description": "Autonomous job application agent with AI resume tailoring, cover letter generation, and PDF output",
+  "main": "main.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "electron .",
+    "cli": "node src/index.js",
     "test": "node testRunner.js"
+  },
+  "bin": {
+    "jobpilot": "src/index.js"
   },
   "dependencies": {
     "dotenv": "^16.0.3",
@@ -14,11 +18,25 @@
     "openai": "^4.0.0",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.13.0",
-    "playwright": "^1.42.0"
-  }
-  "main": "main.js",
-"scripts": {
-  "start": "electron ."
-}
-
+    "playwright": "^1.42.0",
+    "simple-spellchecker": "^1.2.0",
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0"
+  },
+  "pkg": {
+    "scripts": "src/**/*.js",
+    "assets": [
+      "data/resumes/**/*",
+      "data/logs/**/*",
+      "data/output/**/*",
+      ".env"
+    ],
+    "targets": [
+      "node20-win-x64"
+    ]
+  },
+  "author": "Syeed Hamid",
+  "license": "MIT"
 }
